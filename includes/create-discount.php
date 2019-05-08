@@ -9,160 +9,179 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  */
 class SDEDD_Create_Discount {
-	public function mc_create_discount(){
-		global $sdedd_options;
-		if ( !isset( $sdedd_options[ 'mailchimp_key' ] ) ){
-			return;
-		}
 
-		$key = $sdedd_options[ 'mailchimp_key' ];
-		if ( ! isset( $_GET['trigger-special-discount'] ) || ! isset( $_GET['discount-key'] ) || $_GET['discount-key'] != $key || ! function_exists( 'edd_store_discount' ) ) {
-			return;
-		}
+	public function __construct(){
+		$this->sdedd_options = get_option( 'sdedd_settings' );
+	}
+	/**
+	 * Our discount type. Used for type specific filters/actions
+	 * @var string
+	 * @since 1.1.0
+	 */
+	public $discount_type = 'default';
 
-		// Now check to make sure we received data from MailChimp.
-		if ( ! isset( $_POST['data']['merges'] ) ) {
-			return;
-		}
 
-		$contact = $_POST['data']['merges'];
-		$email   = wp_strip_all_tags( $contact['EMAIL'] );
-
-		// make sure we're not talking to ourselves
-		if ( ! is_email( $email ) ) {
-			return;
-		}
-
-		global $wpdb;
-		$discount_name = $sdedd_options[ 'discount_name' ] . ' ' . $email;
-
-		$query   = "
-		    SELECT      *
-		    FROM        $wpdb->posts
-		    WHERE       $wpdb->posts.post_title LIKE '$discount_name%'
-		    AND         $wpdb->posts.post_type = 'edd_discount'
-		    ORDER BY    $wpdb->posts.post_title
-		";
-		$results = $wpdb->get_results( $query );
-
-		// Already created a discount for this email.
-		if ( is_array( $results ) && count( $results ) ) {
-			return;
-		}
-		$timestamp     = time();
-		$numbers_array = str_split( $timestamp . rand( 10, 99 ) );
-		$letters_array = array_combine( range( 1, 26 ), range( 'a', 'z' ) );
-		$final_code    = '';
-
-		foreach ( $numbers_array as $key => $value ) {
-			$final_code .= $letters_array[ $value ];
-		}
-
-		$discount_args = array(
-			'code'     => $final_code,
-			'name'     => $discount_name,
-			'status'   => 'active',
-			'max'      => $sdedd_options[ 'discount_max' ],
-			'amount'   => $sdedd_options[ 'discount_amount' ],
-			'type'     => $sdedd_options[ 'discount_type' ],
-			'use_once' => 'true' == $sdedd_options[ 'discount_use_once' ] ? 'true' : 'false',
-		);
-		update_option( 'discount_args', $discount_args );
-		edd_store_discount( $discount_args );
-
-		$first_name = ( array_key_exists( 'FNAME', $contact ) && ! empty( $contact['FNAME'] ) ) ? $contact['FNAME'] : $sdedd_options['name_placeholder'];
-
-		$vars = array(
-			'{firstname}'	=> esc_html( $first_name ),
-			'{code}'		=> esc_html( $final_code ),
-		);
-
-		$message = strtr( $sdedd_options[ 'message' ], $vars );
-
-		$subject = $sdedd_options[ 'email_subject' ];
-
-		$headers = array(
-			'Content-Type: text/html; charset=UTF-8',
-			'From: ' . $sdedd_options[ 'from_name' ] . ' <' . $sdedd_options[ 'from_email' ] . '>'
-		);
-		wp_mail( $email, $subject, $message, $headers );
+	/**
+	 * The key used in the webhook.
+	 * @return string
+	 * @since 1.1.0
+	 */
+	public function get_key(){
+		$key = false;
+		return $key;
 	}
 
-	public function ac_create_discount(){
-		global $sdedd_options;
-		if ( !isset( $sdedd_options[ 'activecampaign_key' ] ) ){
-			return;
-		}
-		$key = $sdedd_options[ 'activecampaign_key' ];
-		if ( ! isset( $_GET['trigger-special-discount'] ) || ! isset( $_GET['discount-key'] ) || $_GET['discount-key'] != $key || ! function_exists( 'edd_store_discount' ) ) {
-			return;
-		}
+	/**
+	 * The name we'll give the discount when it is created
+	 * @since 1.1.0
+	 * @return string
+	 */
+	public function get_discount_name(){
+		$discount_name = $this->sdedd_options[ 'discount_name' ] . ' ' . $this->get_email();
+		return $discount_name;
+	}
 
-		// Now check to make sure we received data from Active Campaign.
-		if ( ! isset( $_POST['contact'] ) || ! isset( $_POST['contact']['email'] ) ) {
-			return;
+	/**
+	 * Get email address from the webhook
+	 *
+	 * @access public
+	 * @since 1.1.0
+	 * @return string
+	 */
+	public function get_email() {
+		$email = '';
+		if( isset( $_POST['email'] ) ){
+			$email = $_POST['email'];
 		}
-
-		$contact = $_POST['contact'];
-		$email   = wp_strip_all_tags( $contact['email'] );
-
-		// make sure we're not talking to ourselves
-		if ( ! is_email( $email ) ) {
-			return;
+		if ( ! is_email( $email ) ){
+			$email = '';
 		}
+		return $email;
+	}
 
+	/**
+	 * Get contact name from the webhook
+	 *
+	 * @access public
+	 * @since 1.1.0
+	 * @return string
+	 */
+	public function get_name() {
+		$name = '';
+		if( isset( $_POST['data']['merges'] ) ){
+			$name = $_POST['data']['merges']['FNAME'];
+		}
+		if ( empty( $name ) ){
+			$name = $this->sdedd_options['name_placeholder'];
+		}
+		return $name;
+	}
+
+	/**
+	 * Can we create a discount?
+	 *
+	 * @access public
+	 * @since 1.1.0
+	 * @return bool Whether the discount should be created
+	 */
+	public function can_discount() {
+		$discount = true;
+		if ( ! isset( $_GET['trigger-special-discount'] ) || ! isset( $_GET['discount-key'] ) || $_GET['discount-key'] != $this->get_key() || ! function_exists( 'edd_store_discount' ) ) {
+			$discount = false;
+		}
+		if ( ! $this->already_discounted() ){
+			$discount = false;
+		}
+		if ( ! $this->get_key() ){
+			$discount = false;
+		}
+		if ( $this->get_email() == '' ){
+			$discount = false;
+		}
+		// Only create a discount if the type is another type
+		if ( $this->discount_type == 'default' ){
+			$discount = false;
+		}
+		return (bool) $discount;
+	}
+
+	/**
+	 * Does discount exist already?
+	 *
+	 * @access public
+	 * @since 1.1.0
+	 * @return bool Whether the discount already exists
+	 */
+	public function already_discounted() {
 		global $wpdb;
-		$discount_name = $sdedd_options[ 'discount_name' ] . ' ' . $email;
+
+		$name = $this->get_discount_name();
 
 		$query   = "
 		    SELECT      *
 		    FROM        $wpdb->posts
-		    WHERE       $wpdb->posts.post_title LIKE '$discount_name%'
+		    WHERE       $wpdb->posts.post_title LIKE '$name%'
 		    AND         $wpdb->posts.post_type = 'edd_discount'
 		    ORDER BY    $wpdb->posts.post_title
 		";
 		$results = $wpdb->get_results( $query );
-
-		// Already created a discount for this email.
+		$discount = true;
+		// Check if we already created a discount for this email.
 		if ( is_array( $results ) && count( $results ) ) {
+			$discount = false;
+		}
+		return (bool) $discount;
+	}
+
+	/**
+	 * Create the discount code
+	 *
+	 * @access public
+	 * @since 1.1.0
+	 * @return void
+	 */
+	public function create_discount(){
+		if ( !$this->can_discount() ){
 			return;
 		}
-		$timestamp     = time();
-		$numbers_array = str_split( $timestamp . rand( 10, 99 ) );
-		$letters_array = array_combine( range( 1, 26 ), range( 'a', 'z' ) );
-		$final_code    = '';
+		$timestamp		= time();
+		$numbers_array	= str_split( $timestamp . rand( 10, 99 ) );
+		$letters_array	= array_combine( range( 1, 26 ), range( 'a', 'z' ) );
+		$final_code		= '';
 
 		foreach ( $numbers_array as $key => $value ) {
 			$final_code .= $letters_array[ $value ];
 		}
 
 		$discount_args = array(
-			'code'     => $final_code,
-			'name'     => $discount_name,
-			'status'   => 'active',
-			'max'      => $sdedd_options[ 'discount_max' ],
-			'amount'   => $sdedd_options[ 'discount_amount' ],
-			'type'     => $sdedd_options[ 'discount_type' ],
-			'use_once' => 'true' == $sdedd_options[ 'discount_use_once' ] ? 'true' : 'false',
+			'code'		=> $final_code,
+			'name'		=> $this->get_discount_name(),
+			'status'	=> 'active',
+			'max'		=> $this->sdedd_options[ 'discount_max' ],
+			'amount'	=> $this->sdedd_options[ 'discount_amount' ],
+			'type'		=> $this->sdedd_options[ 'discount_type' ],
+			'use_once'	=> 'true' == $this->sdedd_options[ 'discount_use_once' ] ? 'true' : 'false',
 		);
 
+		//Create the discount
 		edd_store_discount( $discount_args );
 
-		$first_name = ( array_key_exists( 'FNAME', $contact ) && ! empty( $contact['FNAME'] ) ) ? $contact['FNAME'] : $sdedd_options['name_placeholder'];
+		//Send the discount to the subscriber
+		$first_name = $this->get_name();
 
 		$vars = array(
 			'{firstname}'	=> esc_html( $first_name ),
 			'{code}'		=> esc_html( $final_code ),
 		);
 
-		$message = strtr( $sdedd_options[ 'message' ], $vars );
+		$message = strtr( $this->sdedd_options[ 'message' ], $vars );
 
-		$subject = $sdedd_options[ 'email_subject' ];
+		$subject = $this->sdedd_options[ 'email_subject' ];
 
 		$headers = array(
 			'Content-Type: text/html; charset=UTF-8',
-			'From: ' . $sdedd_options[ 'from_name' ] . ' <' . $sdedd_options[ 'from_email' ] . '>'
+			'From: ' . $this->sdedd_options[ 'from_name' ] . ' <' . $this->sdedd_options[ 'from_email' ] . '>'
 		);
-		wp_mail( $email, $subject, $message, $headers );
+		wp_mail( $this->get_email(), $subject, $message, $headers );
 	}
 }

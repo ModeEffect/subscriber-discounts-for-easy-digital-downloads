@@ -1,11 +1,11 @@
 <?php
 /**
  * Plugin Name: Subscriber Discounts for Easy Digital Downloads
- * Plugin URI: https://scottdeluzio.com
+ * Plugin URI: https://amplifyplugins.com
  * Description: Automatically email a discount code to new subscribers.
  * Tags: Easy Digital Downloads, MailChimp, ActiveCampaign, Discounts
- * Version: 1.0.0
- * Author: scott.deluzio
+ * Version: 1.1.1
+ * Author: Scott DeLuzio
  * Author URI: https://scottdeluzio.com
  * License: GPL2
  * Text Domain: sdedd
@@ -53,19 +53,22 @@ $sdedd_options = get_option( 'sdedd_settings' );
 function sdedd_process_discount(){
 	$files = array(
 		'create-discount',
-		'options-page'
+		'options-page',
+		'mailchimp-discount',
+		'activecampaign-discount'
 	); //array for future use
 
 	foreach( $files as $file ) {
 		include( SDEDD_PLUGIN_DIR . '/includes/' . $file . '.php' );
 	}
-	$create = new SDEDD_Create_Discount();
 	global $sdedd_options;
-	if ( isset( $sdedd_options[ 'mailchimp_key' ] ) ){
-		$create->mc_create_discount();
+	if ( isset( $sdedd_options[ 'mailchimp_key' ] ) && $sdedd_options[ 'mailchimp_key' ] != '' ){
+		$create = new SDEDD_Mailchimp_Create_Discount();
+		$create->create_discount();
 	}
-	if ( isset( $sdedd_options[ 'activecampaign_key' ] ) ){
-		$create->ac_create_discount();
+	if ( isset( $sdedd_options[ 'activecampaign_key' ] ) && $sdedd_options[ 'activecampaign_key' ] != '' ){
+		$create = new SDEDD_Activecampaign_Create_Discount();
+		$create->create_discount();
 	}
 }
 add_action( 'init', 'sdedd_process_discount' );
