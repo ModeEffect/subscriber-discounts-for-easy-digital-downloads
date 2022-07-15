@@ -3,8 +3,8 @@ Contributors: scott.deluzio, ampmode
 Tags: Easy Digital Downloads, MailChimp, ActiveCampaign, Discounts
 Donate link: https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=FG5QVYUDG6YUA
 Requires at least: 2.9
-Tested up to: 5.8.1
-Stable tag: 1.1.3
+Tested up to: 6.0.1
+Stable tag: 1.1.4
 License: GNU v2+
 
 Easily send mailing list subscribers a discount code for joining your list.
@@ -83,6 +83,8 @@ Your webhook callback URL should be http://yourdomain.com/?trigger-special-disco
 Replace yourdomain.com with your actual website domain, and replace xxxxxxxxxxxx with the ActiveCampaign Key entered in the plugin settings.
 
 == Changelog ==
+= 1.1.4 =
+* Updated tested up to versions of WP and WooCommerce.
 = 1.1.3 =
 * Updated tested up to version.
 * Added Contributors.
@@ -96,6 +98,5 @@ Replace yourdomain.com with your actual website domain, and replace xxxxxxxxxxxx
 * Initial version
 
 == Upgrade Notice ==
-= 1.1.3 =
-* Updated tested up to version.
-* Added Contributors.
+= 1.1.4 =
+* Updated tested up to versions of WP and WooCommerce.

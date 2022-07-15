@@ -4,7 +4,9 @@
  * Plugin URI: https://amplifyplugins.com
  * Description: Automatically email a discount code to new subscribers.
  * Tags: Easy Digital Downloads, MailChimp, ActiveCampaign, Discounts
- * Version: 1.1.3
+ * Tested up to: 6.0.1
+ * Version: 1.1.4
+ * WC tested up to: 6.7.0
  * Author: AMP-MODE
  * Author URI: https://amplifyplugins.com
  * License: GPL2
